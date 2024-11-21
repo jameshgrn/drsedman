@@ -10,7 +10,7 @@ help:
 
 # Test targets
 test:
-	PYTHONPATH=${PWD} pytest -v tests/core tests/interface tests/integration
+	PYTHONPATH=${PWD} pytest -v tests/core tests/interface tests/integration tests/tools
 
 # Linting
 lint:
