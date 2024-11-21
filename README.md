@@ -2,6 +2,12 @@
 
 A geoscience document analysis system that uses Google's Gemini API to extract structured information from scientific papers, focusing on geomorphology and sedimentology. Based on [vegaluisjose/mlx-rag](https://github.com/vegaluisjose/mlx-rag), extended with Gemini API for PDF processing, DuckDB for embeddings and enhanced visualization.
 
+
+<div align="center">
+  <img src="docs/images/drsedman.png" alt="Dr. Sedman Logo" width="400">
+  <h1>DrSedman</h1>
+</div>
+
 ## Features
 
 - PDF Processing with Gemini API
