@@ -400,8 +400,8 @@ def process_with_retry(
             if pdf_file:
                 try:
                     pdf_file.delete()
-                except:
-                    pass
+                except Exception as e:
+                    logging.warning(f"Failed to delete uploaded PDF file: {e}")
                 pdf_file = None
     
     return None
