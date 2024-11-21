@@ -1,7 +1,7 @@
 import logging
 import fitz  # PyMuPDF
 import pymupdf4llm
-from typing import Iterator
+from typing import Dict, Any, Iterator
 
 logging.basicConfig(level=logging.INFO)
 
@@ -40,8 +40,10 @@ def process_pdf(pdf_path: str, db=None) -> Iterator[str]:
         
         # Process each page's text
         for chunk in chunks:
-            if isinstance(chunk, dict) and 'text' in chunk:
-                text = chunk['text'].strip()
+            if isinstance(chunk, Dict) and 'text' in chunk:
+                # Type hint the dictionary
+                chunk_dict: Dict[str, Any] = chunk
+                text = chunk_dict['text'].strip()
                 # Only yield non-empty chunks
                 if text and len(text.split()) > 20:  # Minimum 20 words per chunk
                     yield text

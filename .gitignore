@@ -13,4 +13,6 @@ pdf_small/
 .pytest_cache/
 .venv/
 config/gemini_credentials.json
+.DS_Store
+.env
 
