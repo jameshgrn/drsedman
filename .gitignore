@@ -1,0 +1,16 @@
+__pycache__
+*.__pycache__
+*.npz
+
+# Add old directory
+old/
+*.db
+gemini_output/
+pdfs/
+pdf_small/
+.whisper/
+.history/
+.pytest_cache/
+.venv/
+config/gemini_credentials.json
+

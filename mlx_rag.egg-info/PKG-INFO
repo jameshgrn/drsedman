@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: mlx-rag
+Version: 0.1.0
+License-File: LICENSE
+Requires-Dist: mlx
+Requires-Dist: mlx-lm
+Requires-Dist: pydantic
+Requires-Dist: unstructured[pdf]
+Requires-Dist: duckdb
+Requires-Dist: psutil
+Requires-Dist: colorama
+Requires-Dist: pymupdf4llm
+Requires-Dist: numpy
