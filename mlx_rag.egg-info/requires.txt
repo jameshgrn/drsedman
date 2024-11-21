@@ -1,9 +1,0 @@
-mlx
-mlx-lm
-pydantic
-unstructured[pdf]
-duckdb
-psutil
-colorama
-pymupdf4llm
-numpy

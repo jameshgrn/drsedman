@@ -103,15 +103,26 @@ drsedman/
 │   │   ├── processor.py
 │   │   ├── gemini.py
 │   │   └── vectordb.py
-│   ├── processing/
-│   │   └── gemini.py
+│   ├── interface/
+│   │   ├── bot.py
+│   │   └── chat.py
 │   └── tools/
-│       └── format_gemini.py
+│       ├── format_gemini.py
+│       └── save_gemini_html.py
 ├── scripts/
+│   ├── chat.zsh
+│   ├── process_and_embed.zsh
 │   ├── run_gemini_processing.zsh
+│   ├── update_drsedman.zsh
 │   └── view_gemini.sh
-├── gemini_output/
-│   └── *_gemini.jsonl
-└── data/
-    └── pdfs/
+├── tests/
+│   ├── core/
+│   ├── interface/
+│   └── tools/
+├── data/
+│   ├── pdfs/
+│   └── embeddings/
+└── docs/
+    ├── CONTRIBUTING.md
+    └── architecture.md
 ```
