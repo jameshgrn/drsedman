@@ -270,13 +270,12 @@ def process_pdfs_parallel(
     
     # Process in batches
     batch_size = 3
-    max_concurrent = 1
-    
+
     for i in range(0, len(to_process), batch_size):
         batch = to_process[i:i + batch_size]
         
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrent) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
                 future_to_pdf = {
                     executor.submit(process_pdf, pdf): pdf 
                     for pdf in batch
