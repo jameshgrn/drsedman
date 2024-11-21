@@ -1,15 +1,23 @@
-"""
-MLX-RAG: A RAG implementation using MLX
-"""
-
-from .core import VectorDB, process_pdf, chunk_generator
-from .interface import Bot, Chat
+"""DrSedman: Geoscience Document Analysis System."""
 
 __version__ = "0.1.0"
+
+from .core import (
+    VectorDB,
+    process_pdf,
+    chunk_generator,
+    Model,
+    process_pdf_gemini,
+    process_pdfs_parallel,
+    setup_gemini
+)
+
 __all__ = [
     'VectorDB',
     'process_pdf',
     'chunk_generator',
-    'Bot',
-    'Chat',
+    'Model',
+    'process_pdf_gemini',
+    'process_pdfs_parallel',
+    'setup_gemini'
 ]

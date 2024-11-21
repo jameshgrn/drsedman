@@ -1,4 +1,4 @@
-.PHONY: test clean lint format help
+.PHONY: test clean lint format help coverage mypy
 
 # Default target
 help:
@@ -7,10 +7,20 @@ help:
 	@echo "  make lint       - Run linter"
 	@echo "  make format     - Format code"
 	@echo "  make clean      - Clean up cache files"
+	@echo "  make coverage   - Run tests with coverage"
+	@echo "  make mypy       - Run type checker"
 
 # Test targets
 test:
 	PYTHONPATH=${PWD} pytest -v tests/core tests/interface tests/integration tests/tools
+
+# Coverage
+coverage:
+	PYTHONPATH=${PWD} pytest --cov=src --cov-report=html --cov-report=term tests/
+
+# Type checking
+mypy:
+	mypy src/ tests/
 
 # Linting
 lint:
@@ -30,4 +40,5 @@ clean:
 	find . -type f -name ".coverage" -delete
 	find . -type d -name "*.egg-info" -exec rm -rf {} +
 	find . -type d -name ".pytest_cache" -exec rm -rf {} +
-	find . -type d -name ".ruff_cache" -exec rm -rf {} + 
+	find . -type d -name ".ruff_cache" -exec rm -rf {} +
+	find . -type d -name "htmlcov" -exec rm -rf {} + 

@@ -119,7 +119,14 @@ def setup_gemini() -> None:
     genai.configure(api_key=api_key)
 
 def process_pdf(pdf_path: Union[str, Path]) -> List[Dict[str, Any]]:
-    """Process PDF using Gemini's document AI."""
+    """Process PDF using Gemini's document AI.
+    
+    Args:
+        pdf_path: Path to PDF file
+        
+    Returns:
+        List of processed entries with content and metadata
+    """
     results = []
     
     try:

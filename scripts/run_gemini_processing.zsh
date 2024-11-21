@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/bin/zsh
 
 set -euo pipefail  # Stricter error handling
 
@@ -57,11 +57,10 @@ mkdir -p "$OUTPUT_DIR"
 
 # Run Gemini processing
 cd "$PROJECT_ROOT"
-python -u scripts/process_pdfs_gemini.py \
+python3 -m src.core.gemini \
     --pdf-dir "$PDF_DIR" \
     --output-dir "$OUTPUT_DIR" \
-    --max-workers 4 \
-    $RETRY_FLAG
+    ${RETRY_FLAG:+"$RETRY_FLAG"}
 
 echo "\nPipeline complete!"
 echo "- Check ${OUTPUT_DIR##*/} for Gemini summaries"

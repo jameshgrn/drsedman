@@ -16,6 +16,8 @@ graph TB
         PU[pdf_utils.py]
         MOD[model.py]
         PROC[processor.py]
+        gemini[gemini.py]
+        vectordb[vectordb.py]
     end
 
     subgraph Tools ["Tools Layer (src/tools/)"]
@@ -56,6 +58,8 @@ graph TB
 - **pdf_utils.py**: PDF processing and text extraction
 - **model.py**: Model interface and configuration
 - **processor.py**: Core processing logic
+- **gemini.py**: Handles PDF processing with Gemini API
+- **vectordb.py**: Manages vector database operations
 
 ### Processing Layer (`scripts/`)
 - **process_pdfs_gemini.py**: Main processing script
@@ -96,11 +100,15 @@ drsedman/
 │   ├── core/
 │   │   ├── pdf_utils.py
 │   │   ├── model.py
-│   │   └── processor.py
+│   │   ├── processor.py
+│   │   ├── gemini.py
+│   │   └── vectordb.py
+│   ├── processing/
+│   │   └── gemini.py
 │   └── tools/
 │       └── format_gemini.py
 ├── scripts/
-│   ├── process_pdfs_gemini.py
+│   ├── run_gemini_processing.zsh
 │   └── view_gemini.sh
 ├── gemini_output/
 │   └── *_gemini.jsonl
