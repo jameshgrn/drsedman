@@ -7,6 +7,14 @@ SCRIPT_DIR=${0:A:h}
 PROJECT_ROOT=${SCRIPT_DIR}/..
 PDF_DIR="${PROJECT_ROOT}/data/pdfs"
 
+# Print usage info
+echo "\n=== PDF Duplicate Cleaner ==="
+echo "📂 PDF Directory: ${PDF_DIR}"
+echo "ℹ️  Usage:"
+echo "  • ./clean_pdfs.zsh              - Show duplicates without removing"
+echo "  • ./clean_pdfs.zsh --remove     - Remove duplicates"
+echo "  • ./clean_pdfs.zsh --threshold 0.75 --remove  - More aggressive matching"
+
 # Create a Python script for fuzzy matching
 TMP_SCRIPT=$(mktemp)
 cat > "$TMP_SCRIPT" << 'PYTHON'
@@ -16,6 +24,7 @@ from difflib import SequenceMatcher
 import hashlib
 from collections import defaultdict
 import argparse
+import re
 
 def get_file_hash(filepath):
     """Get SHA-256 hash of file contents."""
@@ -27,23 +36,40 @@ def get_file_hash(filepath):
 
 def clean_filename(name):
     """Clean filename for better matching."""
-    # Remove common prefixes/suffixes
+    # Remove common prefixes/suffixes and file extension
     name = name.lower()
-    name = name.replace('(pdf)', '')
-    name = name.replace('.pdf', '')
-    # Remove special characters
-    name = ''.join(c for c in name if c.isalnum() or c.isspace())
-    # Remove extra spaces
-    return ' '.join(name.split())
+    name = re.sub(r'\(pdf\)', '', name, flags=re.IGNORECASE)
+    name = re.sub(r'\.pdf$', '', name, flags=re.IGNORECASE)
+    
+    # Remove year patterns
+    name = re.sub(r'\b\d{4}\b', '', name)
+    
+    # Remove common prefixes
+    name = re.sub(r'^(the|a|an)\s+', '', name)
+    
+    # Remove parentheses and their contents
+    name = re.sub(r'\([^)]*\)', '', name)
+    
+    # Remove special characters and extra whitespace
+    name = re.sub(r'[^\w\s]', ' ', name)
+    name = ' '.join(name.split())
+    
+    # Remove common words
+    stop_words = {'and', 'or', 'the', 'in', 'on', 'at', 'to', 'for', 'of', 'with'}
+    words = [w for w in name.split() if w not in stop_words]
+    
+    return ' '.join(words)
 
 def find_duplicates(pdf_dir, similarity_threshold=0.85):
     """Find duplicate PDFs using fuzzy matching and content hashing."""
     pdf_dir = Path(pdf_dir)
     pdfs = list(pdf_dir.glob('*.pdf'))
     
+    print(f"\n🔍 Found {len(pdfs)} PDF files")
+    
     # First pass: group by content hash
     hash_groups = defaultdict(list)
-    print("\nChecking file contents...")
+    print("\n📊 Checking file contents...")
     for pdf in pdfs:
         file_hash = get_file_hash(pdf)
         hash_groups[file_hash].append(pdf)
@@ -52,7 +78,7 @@ def find_duplicates(pdf_dir, similarity_threshold=0.85):
     exact_dupes = {k: v for k, v in hash_groups.items() if len(v) > 1}
     
     # Second pass: check filenames for similar files
-    print("\nChecking filenames...")
+    print("\n📝 Analyzing filenames...")
     similar_files = defaultdict(list)
     processed_files = set()
     
@@ -61,6 +87,9 @@ def find_duplicates(pdf_dir, similarity_threshold=0.85):
             continue
             
         name1 = clean_filename(pdf1.name)
+        if not name1.strip():  # Skip if filename is empty after cleaning
+            continue
+            
         group = [pdf1]
         
         for pdf2 in pdfs[i+1:]:
@@ -68,9 +97,16 @@ def find_duplicates(pdf_dir, similarity_threshold=0.85):
                 continue
                 
             name2 = clean_filename(pdf2.name)
+            if not name2.strip():
+                continue
+                
+            # Calculate similarity
             similarity = SequenceMatcher(None, name1, name2).ratio()
             
             if similarity >= similarity_threshold:
+                print(f"\n🔍 Found similar files ({similarity:.2f}):")
+                print(f"  1. {pdf1.name}")
+                print(f"  2. {pdf2.name}")
                 group.append(pdf2)
                 processed_files.add(pdf2)
         
@@ -91,53 +127,84 @@ def main():
     
     # Report findings
     if exact_dupes:
-        print("\nExact duplicates (same content):")
+        print("\n🔍 Exact duplicates (same content):")
         for hash_val, files in exact_dupes.items():
-            print(f"\nDuplicate group:")
-            for f in files:
-                print(f"  {f.name}")
+            print(f"\n  Duplicate group:")
+            for i, f in enumerate(files, 1):
+                print(f"    {i}. {f.name}")
+                if i == 1:
+                    print("       ↳ This file will be kept")
+                else:
+                    print("       ↳ This file will be removed")
     
     if similar_files:
-        print("\nSimilar filenames:")
+        print("\n🔍 Similar filenames:")
         for original, dupes in similar_files.items():
-            print(f"\nPossible duplicates of {original.name}:")
+            print(f"\n  Group based on: {original.name}")
+            print(f"    → Will keep this file")
             for f in dupes:
-                print(f"  {f.name}")
+                print(f"    → Will remove: {f.name}")
+                print(f"      Clean name comparison:")
+                print(f"        1. {clean_filename(original.name)}")
+                print(f"        2. {clean_filename(f.name)}")
     
     if not exact_dupes and not similar_files:
-        print("\nNo duplicates found!")
+        print("\n✅ No duplicates found!")
         return
     
     # Remove duplicates if requested
     if args.remove:
-        print("\nRemoving duplicates...")
+        print("\n🗑️  Removing duplicates...")
         removed = 0
+        skipped = 0
         
         # Remove exact duplicates (keep first one)
         for files in exact_dupes.values():
             for f in files[1:]:
-                f.unlink()
-                print(f"Removed exact duplicate: {f.name}")
-                removed += 1
+                try:
+                    if f.exists():  # Check if file still exists
+                        f.unlink()
+                        print(f"  ✓ Removed exact duplicate: {f.name}")
+                        removed += 1
+                    else:
+                        print(f"  ⚠️  Already removed: {f.name}")
+                        skipped += 1
+                except Exception as e:
+                    print(f"  ❌ Error removing {f.name}: {str(e)}")
         
         # Remove similar files (keep first one)
         for dupes in similar_files.values():
             for f in dupes:
-                f.unlink()
-                print(f"Removed similar file: {f.name}")
-                removed += 1
+                try:
+                    if f.exists():  # Check if file still exists
+                        f.unlink()
+                        print(f"  ✓ Removed similar file: {f.name}")
+                        removed += 1
+                    else:
+                        print(f"  ⚠️  Already removed: {f.name}")
+                        skipped += 1
+                except Exception as e:
+                    print(f"  ❌ Error removing {f.name}: {str(e)}")
         
-        print(f"\nRemoved {removed} duplicate files")
+        print(f"\n✅ Summary:")
+        print(f"  • Removed: {removed} files")
+        print(f"  • Skipped: {skipped} files (already removed)")
     else:
-        print("\nRun with --remove to delete duplicate files")
+        total = sum(len(files)-1 for files in exact_dupes.values()) + \
+                sum(len(dupes) for dupes in similar_files.values())
+        print(f"\n⚠️  Found {total} duplicate files")
+        print("Run with --remove to delete duplicate files")
 
 if __name__ == '__main__':
     main()
 PYTHON
 
-# Run the script
-echo "Checking for duplicate PDFs in ${PDF_DIR}..."
-python3 "$TMP_SCRIPT" "${PDF_DIR}"
+# Pass command line arguments to the Python script
+if [[ $# -gt 0 ]]; then
+    python3 "$TMP_SCRIPT" "${PDF_DIR}" "$@"
+else
+    python3 "$TMP_SCRIPT" "${PDF_DIR}"
+fi
 
 # Clean up
 rm "$TMP_SCRIPT" 
