@@ -16,5 +16,4 @@ config/gemini_credentials.json
 .DS_Store
 .env
 src/mlx_rag.egg-info
-
 *.egg-info/

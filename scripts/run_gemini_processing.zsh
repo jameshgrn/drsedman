@@ -1,30 +1,31 @@
 #!/bin/zsh
 
-set -euo pipefail  # Stricter error handling
-
-# Add error handling function
-handle_error() {
-    echo "Error occurred in run_gemini_processing.zsh"
-    echo "Line: $1"
-    echo "Exit code: $2"
-    exit 1
-}
-
-trap 'handle_error ${LINENO} $?' ERR
-
-# Process PDFs with Gemini API
-# Usage: ./run_gemini_processing.zsh [pdf_dir] [output_dir] [--retry-failed]
+set -euo pipefail
 
 # Get absolute paths
 SCRIPT_DIR=${0:A:h}
 PROJECT_ROOT=${SCRIPT_DIR}/..
-PDF_DIR=${1:-"${PROJECT_ROOT}/data/pdfs"}
-OUTPUT_DIR=${2:-"${PROJECT_ROOT}/gemini_output"}
 
-# Check for retry flag - handle case when $3 is not set
-RETRY_FLAG=""
-if [ $# -ge 3 ] && [ "$3" = "--retry-failed" ]; then
-    RETRY_FLAG="--retry-failed"
+# Process PDFs with Gemini API
+# Usage: ./run_gemini_processing.zsh [pdf_path] [output_dir]
+
+# Get absolute paths and handle spaces/special chars in filenames
+PDF_PATH="${1:-"${PROJECT_ROOT}/data/pdfs"}"  # Quote to handle spaces
+OUTPUT_DIR="${2:-"${PROJECT_ROOT}/gemini_output"}"
+ENV_FILE="${PROJECT_ROOT}/.env"
+
+# Print key info
+echo "\n=== Gemini Processing Pipeline ==="
+echo "📁 Input: ${PDF_PATH}"
+echo "📁 Output: ${OUTPUT_DIR}"
+echo "⚙️  Config: ${ENV_FILE}\n"
+
+# Check for .env file and contents
+if [[ ! -f "${ENV_FILE}" ]]; then
+    echo "❌ Error: .env file not found at: ${ENV_FILE}"
+    echo "Please create one with your Gemini API key:"
+    echo "GEMINI_API_KEY=your_api_key_here"
+    exit 1
 fi
 
 # Initialize PYTHONPATH if not set
@@ -37,30 +38,64 @@ else
     export PYTHONPATH="$PROJECT_ROOT:$PYTHONPATH"
 fi
 
-# Print key info
-echo "Starting Gemini processing pipeline..."
-echo "PDF Directory: ${PDF_DIR##*/}"  # Show only last component
-echo "Output Directory: ${OUTPUT_DIR##*/}"
+# Create a Python script with proper escaping
+TMP_SCRIPT=$(mktemp)
+cat > "$TMP_SCRIPT" << PYTHON
+from src.core.gemini import setup_gemini, process_pdf
+from dotenv import load_dotenv
+import sys
+import os
+import json
 
-# Check directory exists
-if [[ ! -d "$PDF_DIR" ]]; then
-    echo "Error: Directory not found: $PDF_DIR"
-    exit 1
-fi
+try:
+    # Get paths from environment
+    pdf_path = os.environ['PDF_PATH']
+    output_dir = os.environ['OUTPUT_DIR']
+    env_file = os.environ['ENV_FILE']
+    
+    # Load API key from .env with explicit path
+    load_dotenv(env_file)
+    api_key = os.getenv('GEMINI_API_KEY')
+    print(f"🔑 API Key: {'[FOUND]' if api_key else '[NOT FOUND]'}")
+    
+    if not api_key:
+        raise ValueError(f"GEMINI_API_KEY not found in {env_file}")
+    
+    # Setup Gemini API
+    setup_gemini()
+    
+    # Process the PDF
+    print(f"\n📄 Processing: {os.path.basename(pdf_path)}")
+    results = process_pdf(pdf_path)
+    if results:
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Save results
+        base_name = os.path.basename(pdf_path)
+        output_name = base_name.replace('.pdf', '_gemini.jsonl')
+        output_path = os.path.join(output_dir, output_name)
+        
+        with open(output_path, 'w') as f:
+            for result in results:
+                json.dump(result, f)
+                f.write('\n')
+        print(f"✅ Success: Generated {output_name}")
+    else:
+        print(f"⚠️  Warning: No results generated for {os.path.basename(pdf_path)}")
+        sys.exit(1)
+except Exception as e:
+    print(f"❌ Error: {str(e)}", file=sys.stderr)
+    sys.exit(1)
+PYTHON
 
-# Get PDF count quietly
-PDF_COUNT=$(find "$PDF_DIR" -name "*.pdf" -type f | wc -l | tr -d ' ')
-echo "Found $PDF_COUNT PDFs to process"
+# Export paths as environment variables
+export PDF_PATH
+export OUTPUT_DIR
+export ENV_FILE
 
-# Create output directory
-mkdir -p "$OUTPUT_DIR"
+# Run the Python script
+python3 -u "$TMP_SCRIPT"
 
-# Run Gemini processing
-cd "$PROJECT_ROOT"
-python3 -m src.core.gemini \
-    --pdf-dir "$PDF_DIR" \
-    --output-dir "$OUTPUT_DIR" \
-    ${RETRY_FLAG:+"$RETRY_FLAG"}
-
-echo "\nPipeline complete!"
-echo "- Check ${OUTPUT_DIR##*/} for Gemini summaries"
+# Clean up
+rm "$TMP_SCRIPT"
