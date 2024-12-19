@@ -8,7 +8,6 @@ from .core import (
     chunk_generator,
     Model,
     process_pdf_gemini,
-    process_pdfs_parallel,
     setup_gemini
 )
 
@@ -18,6 +17,5 @@ __all__ = [
     'chunk_generator',
     'Model',
     'process_pdf_gemini',
-    'process_pdfs_parallel',
     'setup_gemini'
 ]

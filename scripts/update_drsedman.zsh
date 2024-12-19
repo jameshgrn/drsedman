@@ -18,6 +18,13 @@ echo "  📁 PDFs: ${PDF_DIR}"
 echo "  📁 Output: ${GEMINI_OUTPUT}"
 echo "  🗄️  Database: ${DB_PATH}\n"
 
+# Parse arguments
+RETRY_FLAG=""
+if [[ "${2:-}" == "--retry" ]]; then
+    RETRY_FLAG="--retry-failed"
+    echo "🔄 Retry mode enabled - will reprocess existing files"
+fi
+
 # Validate required directories exist
 if [[ ! -d "${PDF_DIR}" ]]; then
     echo "❌ Error: PDF directory not found: ${PDF_DIR}"
@@ -25,47 +32,40 @@ if [[ ! -d "${PDF_DIR}" ]]; then
     exit 1
 fi
 
-if [[ ! -d "${GEMINI_OUTPUT}" ]]; then
-    echo "❌ Error: Gemini output directory not found: ${GEMINI_OUTPUT}"
-    echo "Please run setup script first to initialize directories"
-    exit 1
-fi
+# Create output directories if they don't exist
+mkdir -p "${GEMINI_OUTPUT}"
+mkdir -p "$(dirname "${DB_PATH}")"
 
-if [[ ! -d "$(dirname "${DB_PATH}")" ]]; then
-    echo "❌ Error: Database directory not found: $(dirname "${DB_PATH}")"
-    echo "Please run setup script first to initialize directories"
-    exit 1
-fi
+# Set up Python environment
+export PYTHONPATH="${PROJECT_ROOT}:${PYTHONPATH:-}"
 
-echo "🔍 Checking for new PDFs..."
-new_pdfs=0
-for pdf in "${PDF_DIR}"/*.pdf; do
-    # Skip if no PDFs found
-    [[ -e "$pdf" ]] || { echo "ℹ️  No PDFs found in ${PDF_DIR}"; continue; }
-    
-    # Handle filenames with spaces
-    base_name=$(basename "${pdf}")
-    jsonl_path="${GEMINI_OUTPUT}/${base_name%.*}_gemini.jsonl"
-    
-    if [[ ! -f "${jsonl_path}" ]]; then
-        if (( new_pdfs == 0 )); then
-            echo "\n📄 New PDFs to process:"
-        fi
-        echo "  → ${base_name}"
-        ((new_pdfs++))
-        # Process just this PDF - quote paths to handle spaces
-        "${SCRIPT_DIR}/run_gemini_processing.zsh" "${pdf}" "${GEMINI_OUTPUT}"
-    fi
-done
-
-if (( new_pdfs == 0 )); then
-    echo "✅ No new PDFs to process"
-fi
+echo "🔍 Processing PDFs..."
+python3 "${PROJECT_ROOT}/src/core/gemini.py" \
+    --pdf-dir "${PDF_DIR}" \
+    --output-dir "${GEMINI_OUTPUT}" \
+    ${RETRY_FLAG}
 
 echo "\n🔄 Updating embeddings..."
-"${SCRIPT_DIR}/process_and_embed.zsh"
+python3 -c "
+from src.core.processor import process_batch
+from src.core.vectordb import VectorDB
+import os
+import json
+
+db = VectorDB('${DB_PATH}', use_persistent=True)
+output_dir = '${GEMINI_OUTPUT}'
+
+try:
+    for file in os.listdir(output_dir):
+        if file.endswith('_gemini.jsonl'):
+            with open(os.path.join(output_dir, file), 'r') as f:
+                content = [line.strip() for line in f if line.strip()]
+                process_batch(content, db, file)
+    print('Successfully processed all files')
+finally:
+    db.close()
+"
 
 echo "\n✅ Update complete!"
 echo "📊 Summary:"
-echo "  → Processed ${new_pdfs} new PDFs"
 echo "  → Database location: ${DB_PATH}\n" 
