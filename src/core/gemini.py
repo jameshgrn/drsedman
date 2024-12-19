@@ -5,7 +5,7 @@ import os
 import logging
 from pathlib import Path
 import google.generativeai as genai
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 from dotenv import load_dotenv
 import json
 from datetime import datetime
@@ -106,9 +106,12 @@ def setup_gemini() -> None:
         raise ValueError("GEMINI_API_KEY not found in environment")
     genai.configure(api_key=api_key)
 
-def validate_pdf(pdf_path: Path) -> bool:
+def validate_pdf(pdf_path: Union[str, Path]) -> bool:
     """Check if PDF is valid and within size limits."""
     try:
+        # Convert string to Path if needed
+        pdf_path = Path(pdf_path) if isinstance(pdf_path, str) else pdf_path
+        
         if not pdf_path.exists():
             logging.error(f"File not found: {pdf_path}")
             return False
@@ -125,12 +128,16 @@ def validate_pdf(pdf_path: Path) -> bool:
         return True
         
     except Exception as e:
-        logging.error(f"Error validating PDF {pdf_path.name}: {str(e)}")
+        # Use str(pdf_path) for error logging to handle both Path and str
+        logging.error(f"Error validating PDF {str(pdf_path)}: {str(e)}")
         return False
 
-def process_pdf(pdf_path: Path) -> Optional[Dict[str, Any]]:
+def process_pdf(pdf_path: Union[str, Path]) -> Optional[Dict[str, Any]]:
     """Process a single PDF using Gemini's document AI."""
     try:
+        # Convert to Path object
+        pdf_path = Path(pdf_path) if isinstance(pdf_path, str) else pdf_path
+        
         # Validate PDF first
         if not validate_pdf(pdf_path):
             return None
@@ -183,7 +190,7 @@ def process_pdf(pdf_path: Path) -> Optional[Dict[str, Any]]:
         return result
         
     except Exception as e:
-        logging.error(f"Failed to process {pdf_path.name}: {str(e)}")
+        logging.error(f"Failed to process {str(pdf_path)}: {str(e)}")
         return None
     finally:
         gc.collect()
